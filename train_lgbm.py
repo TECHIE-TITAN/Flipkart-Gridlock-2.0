@@ -8,7 +8,6 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.metrics import r2_score
 import pygeohash as pgh
 import xgboost as xgb
-from sklearn.ensemble import HistGradientBoostingRegressor
 
 def minute_of_day(ts: str) -> int:
     h, m = ts.split(":")
@@ -92,55 +91,39 @@ def time_split_index(df: pd.DataFrame, val_frac: float = 0.2) -> tuple[np.ndarra
     return train_idx, val_idx
 
 def train_model(X_tr: pd.DataFrame, y_tr: np.ndarray, X_val: pd.DataFrame, y_val: np.ndarray,) -> tuple[object, np.ndarray, str, int | None]:
-    if xgb is not None:
-        dtrain = xgb.DMatrix(X_tr, label=y_tr)
-        dval = xgb.DMatrix(X_val, label=y_val)
-        params = {
-            "objective": "reg:squarederror",
-            "eta": 0.03,
-            "max_depth": 8,
-            "min_child_weight": 20,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "alpha": 0.0,
-            "lambda": 1.0,
-            "tree_method": "hist",
-            "seed": 42,
-            "eval_metric": "rmse",
-        }
-        model = xgb.train(
-            params,
-            dtrain,
-            num_boost_round=4000,
-            evals=[(dval, "validation")],
-            early_stopping_rounds=150,
-            verbose_eval=200,
-        )
+    if xgb is None:
+        raise ModuleNotFoundError("xgboost is required. Install it via requirements.txt")
 
-        best_iteration = getattr(model, "best_iteration", None)
-        if best_iteration is not None:
-            val_pred = model.predict(dval, iteration_range=(0, best_iteration + 1))
-        else:
-            val_pred = model.predict(dval)
-        return model, val_pred, "xgboost", best_iteration
-
-    if HistGradientBoostingRegressor is None:
-        raise ModuleNotFoundError(
-            "Neither xgboost nor sklearn HistGradientBoostingRegressor is available. Install requirements.txt."
-        )
-
-    model = HistGradientBoostingRegressor(
-        learning_rate=0.05,
-        max_depth=8,
-        max_iter=500,
-        min_samples_leaf=30,
-        l2_regularization=0.1,
-        early_stopping=True,
-        validation_fraction=0.1,
-        random_state=42,
+    dtrain = xgb.DMatrix(X_tr, label=y_tr)
+    dval = xgb.DMatrix(X_val, label=y_val)
+    params = {
+        "objective": "reg:squarederror",
+        "eta": 0.03,
+        "max_depth": 8,
+        "min_child_weight": 20,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "alpha": 0.0,
+        "lambda": 1.0,
+        "tree_method": "hist",
+        "seed": 42,
+        "eval_metric": "rmse",
+    }
+    model = xgb.train(
+        params,
+        dtrain,
+        num_boost_round=4000,
+        evals=[(dval, "validation")],
+        early_stopping_rounds=150,
+        verbose_eval=200,
     )
-    model.fit(X_tr, y_tr)
-    return model, model.predict(X_val), "sklearn_histgb", None
+
+    best_iteration = getattr(model, "best_iteration", None)
+    if best_iteration is not None:
+        val_pred = model.predict(dval, iteration_range=(0, best_iteration + 1))
+    else:
+        val_pred = model.predict(dval)
+    return model, val_pred, "xgboost", best_iteration
 
 def train_and_predict(train_path: Path, test_path: Path, output_path: Path) -> None:
     train = pd.read_csv(train_path)
