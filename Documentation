@@ -1,0 +1,140 @@
+# Phase-I
+
+## Problem Formulation
+
+Traffic demand prediction is modeled as a **supervised regression problem**, where the objective is to learn a function that maps spatial, temporal, and contextual information to traffic demand.
+
+**Inputs:**
+
+* Geographical location (`geohash`)
+* Time information (`day`, `timestamp`)
+* Road characteristics (`RoadType`, `NumberofLanes`, `LargeVehicles`, `Landmarks`)
+* Environmental conditions (`Temperature`, `Weather`)
+
+**Output:**
+
+* Traffic demand (`demand`)
+
+---
+
+## Core Assumption
+
+Traffic demand is primarily influenced by:
+
+1. **Where** the event occurs (spatial factors)
+2. **When** it occurs (temporal factors)
+3. **What conditions** exist at that time (contextual factors)
+
+The model therefore focuses on extracting meaningful representations of these three dimensions.
+
+---
+
+## Temporal Feature Engineering
+
+Raw timestamps are transformed into informative features such as:
+
+* Hour of day
+* Quarter-hour bucket
+* Part of day
+* Cyclical time encodings (`sin(hour)`, `cos(hour)`)
+
+Cyclical encoding is important because time is periodic. For example, 23:00 and 00:00 are close in reality but far apart numerically. Sine and cosine transformations preserve this cyclic relationship.
+
+---
+
+## Spatial Feature Engineering
+
+The `geohash` location identifier is transformed into:
+
+* Latitude and longitude coordinates
+* Multiple geohash prefix levels (`geohash3`, `geohash4`, `geohash5`)
+
+This enables the model to learn demand patterns at different geographical scales, ranging from broad regions to specific local areas.
+
+---
+
+## Contextual Features
+
+Road and environmental attributes provide additional signals about traffic behavior:
+
+* Road type
+* Number of lanes
+* Presence of landmarks
+* Vehicle restrictions
+* Temperature
+* Weather conditions
+
+These features help the model capture how infrastructure and environmental conditions influence traffic demand.
+
+---
+
+## Gradient Boosted Trees
+
+The core predictive model is **XGBoost**, a gradient-boosted decision tree algorithm.
+
+Instead of training a single decision tree, XGBoost builds a sequence of trees:
+
+$$
+\hat{y} = \sum_{m=1}^{M} f_m(x)
+$$
+
+where each new tree attempts to correct the prediction errors of previous trees.
+
+This approach is particularly effective for:
+
+* Tabular datasets
+* Mixed numerical and categorical features
+* Nonlinear relationships
+* Medium-sized datasets
+
+---
+
+## Time-Aware Validation
+
+Traffic forecasting is inherently a temporal problem. Therefore, the dataset is split chronologically rather than randomly.
+
+**Training Set:** Earlier timestamps
+
+**Validation Set:** Later timestamps
+
+This prevents data leakage and ensures that model evaluation closely resembles real-world deployment, where future demand must be predicted using only past information.
+
+---
+
+## Early Stopping
+
+During training, the model continuously evaluates performance on a validation set.
+
+Training stops automatically when validation performance no longer improves, preventing overfitting and selecting the optimal model complexity.
+
+---
+
+## Evaluation Metric
+
+Model performance is measured using the coefficient of determination:
+
+$$
+R^2 = 1 - \frac{\sum (y_i-\hat{y}_i)^2}{\sum (y_i-\bar{y})^2}
+$$
+
+The competition score is:
+
+$$
+Score = \max(0, 100 \times R^2)
+$$
+
+Higher values indicate better predictive accuracy.
+
+---
+
+## Why This Approach?
+
+Gradient-boosted trees consistently perform well on structured spatio-temporal datasets because they:
+
+* Capture nonlinear relationships effectively
+* Handle mixed feature types naturally
+* Require less data than deep learning models
+* Provide strong predictive performance with relatively simple feature engineering
+* Support interpretability through feature importance and SHAP analysis
+
+This makes them an excellent baseline and often a competitive final solution for traffic demand forecasting problems.
