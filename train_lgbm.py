@@ -171,12 +171,12 @@ def train_and_predict(train_path: Path, test_path: Path, output_path: Path) -> N
     if best_iteration is not None:
         print(f"Best iteration: {best_iteration}")
     print(f"Validation R2: {r2:.6f}")
-    print(f"Validation competition score: {max(0.0, 100.0 * r2):.4f}")
+    print(f"Validation score: {max(0.0, 100.0 * r2):.4f}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--train", type=Path, default=Path("dataset/train.csv"))
     parser.add_argument("--test", type=Path, default=Path("dataset/test.csv"))
-    parser.add_argument("--output", type=Path, default=Path("submission.csv"))
+    parser.add_argument("--output", type=Path, default=Path("submissions/submission_0.csv"))
     args = parser.parse_args()
     train_and_predict(args.train, args.test, args.output)
